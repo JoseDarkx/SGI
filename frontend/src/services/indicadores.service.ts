@@ -9,6 +9,10 @@ export const indicadoresService = {
   async getPorProceso(token: string, procesoId: string): Promise<Indicador[]> {
     return apiClient.get(`/indicadores/proceso/${procesoId}`, token);
   },
+  
+  async getPorProcesoPadre(token: string, padreId: string): Promise<Indicador[]> {
+    return apiClient.get(`/indicadores/proceso-padre/${padreId}`, token);
+  },
 
   async crear(token: string, indicador: Partial<Indicador>): Promise<Indicador> {
     return apiClient.post('/indicadores', token, indicador);

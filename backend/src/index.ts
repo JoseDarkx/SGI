@@ -19,11 +19,18 @@ app.use(cors({
   origin: (origin, callback) => {
     // Permitir peticiones sin origen (como Postman o apps móviles)
     if (!origin) return callback(null, true);
+    
+    // Si el origen está en la lista de permitidos
     if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('No permitido por CORS'));
+      return callback(null, true);
     }
+
+    // Flexibilidad para desarrollo local y red local
+    if (origin.startsWith('http://localhost') || origin.startsWith('http://192.168.')) {
+      return callback(null, true);
+    }
+
+    callback(new Error('No permitido por CORS'));
   },
   credentials: true
 }));

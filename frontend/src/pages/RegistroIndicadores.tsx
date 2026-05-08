@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ClipboardList, Target, Ruler, Activity, CalendarDays, Info, Save, Send, Eraser } from 'lucide-react';
+import { ClipboardList, Target, Ruler, Activity, CalendarDays, Info, Save, Send, Eraser, FileText, X } from 'lucide-react';
 import { calcularCumplimiento, determinarSemaforoDinamico, verificarCumplimientoDinamico } from '../utils/calculos';
 import Swal from 'sweetalert2';
 import { supabase } from '../lib/supabase';
@@ -26,10 +26,16 @@ const RegistroIndicadores: React.FC = () => {
         plan: ''
     });
 
+    const [file, setFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
     // 1. Cargar los indicadores del Líder
     useEffect(() => {
         if (user?.proceso_id) {
-            fetchIndicadores(user.proceso_id);
+            const isSGI = user.role === 'Sistema de Gestión Integral' || 
+                         user.procesos?.nombre_proceso?.toLowerCase().includes('gestión integral') ||
+                         user.procesos?.nombre_proceso?.toLowerCase().includes('gestion integral');
+            fetchIndicadores(user.proceso_id, isSGI);
         }
     }, [user, fetchIndicadores]);
 
@@ -126,7 +132,7 @@ const RegistroIndicadores: React.FC = () => {
 
         const payload: any = {
             indicador_id: formData.indicador_id,
-            proceso_id: user?.proceso_id,
+            proceso_id: selectedInd.proceso_id, // Usamos el ID del indicador para que quede en el subproceso correcto
             periodo: formData.periodo,
             resultado_mensual: Number(formData.resultado),
             meta: selectedInd.meta,
@@ -148,6 +154,26 @@ const RegistroIndicadores: React.FC = () => {
 
         setIsSubmitting(true);
         try {
+            // Lógica de subida de archivo (Evidencia)
+            if (file) {
+                setIsUploading(true);
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${formData.indicador_id}_${formData.periodo}_${Date.now()}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('evidencias')
+                    .upload(filePath, file);
+
+                if (uploadError) throw new Error('Error al subir la evidencia: ' + uploadError.message);
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('evidencias')
+                    .getPublicUrl(filePath);
+
+                payload.evidencia_url = publicUrl;
+                setIsUploading(false);
+            }
             if (formData.id) {
                 // MODO ACTUALIZACIÓN
                 await registrosService.actualizar(formData.id, payload);
@@ -201,6 +227,7 @@ const RegistroIndicadores: React.FC = () => {
             // Limpiar y redirigir si se envió
             if (estado === 'Enviado') {
                 setFormData({ id: '', indicador_id: '', periodo: new Date().toISOString().slice(0, 10), resultado: '', analisis: '', plan: '' });
+                setFile(null);
                 window.location.hash = '#/historico';
             }
         } catch (e: any) {
@@ -213,6 +240,7 @@ const RegistroIndicadores: React.FC = () => {
             });
         } finally {
             setIsSubmitting(false);
+            setIsUploading(false);
         }
     };
 
@@ -363,14 +391,73 @@ const RegistroIndicadores: React.FC = () => {
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-red-500/20"
                         />
                     </div>
+
+                    {/* SECCIÓN DE EVIDENCIA (PDF) */}
+                    <div className="space-y-3 pt-4 border-t border-slate-50">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                            <FileText size={14} className="text-red-600" />
+                            Evidencia Documental (Opcional - Formato PDF máx. 15MB)
+                        </label>
+                        
+                        <div className="flex items-center gap-4">
+                            {!file ? (
+                                <div className="relative flex-1">
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={(e) => {
+                                            const selectedFile = e.target.files?.[0];
+                                            if (selectedFile) {
+                                                if (selectedFile.type !== 'application/pdf') {
+                                                    Swal.fire('Formato no válido', 'Solo se permiten archivos PDF.', 'error');
+                                                    return;
+                                                }
+                                                if (selectedFile.size > 15 * 1024 * 1024) {
+                                                    Swal.fire('Archivo muy grande', 'El tamaño máximo es de 15MB.', 'error');
+                                                    return;
+                                                }
+                                                setFile(selectedFile);
+                                            }
+                                        }}
+                                        className="hidden"
+                                        id="pdf-upload"
+                                    />
+                                    <label
+                                        htmlFor="pdf-upload"
+                                        className="flex items-center justify-center gap-3 w-full py-4 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-red-400 hover:bg-red-50/30 transition-all text-slate-400 font-bold text-xs uppercase"
+                                    >
+                                        <Save size={18} /> Seleccionar archivo PDF
+                                    </label>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-between bg-red-50 border border-red-100 p-4 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-red-600 text-white p-2 rounded-lg">
+                                            <FileText size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800 truncate max-w-[200px] md:max-w-md">{file.name}</p>
+                                            <p className="text-[10px] text-red-600 font-bold uppercase">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setFile(null)}
+                                        className="p-2 hover:bg-red-200 rounded-full text-red-600 transition-colors"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex gap-4 pt-8 border-t border-slate-50 mt-8">
                     <button disabled={isSubmitting} onClick={() => handleSubmit('Borrador')} className="flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs uppercase hover:bg-slate-50 transition-all disabled:opacity-50">
                         <Save size={16} /> Borrador
                     </button>
-                    <button disabled={isSubmitting} onClick={() => handleSubmit('Enviado')} className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#b91c1c] hover:bg-[#991b1b] text-white font-bold text-xs uppercase shadow-lg shadow-red-900/20 transition-all flex-1 disabled:opacity-50">
-                        {isSubmitting ? 'Procesando...' : <><Send size={16} /> Enviar Registro</>}
+                    <button disabled={isSubmitting || isUploading} onClick={() => handleSubmit('Enviado')} className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#b91c1c] hover:bg-[#991b1b] text-white font-bold text-xs uppercase shadow-lg shadow-red-900/20 transition-all flex-1 disabled:opacity-50">
+                        {isSubmitting ? (isUploading ? 'Subiendo archivo...' : 'Procesando...') : <><Send size={16} /> Enviar Registro</>}
                     </button>
                     <button type="button" onClick={() => setFormData(prev => ({ ...prev, resultado: '', analisis: '', plan: '' }))} className="flex items-center gap-2 px-4 py-3 rounded-xl text-slate-400 hover:text-slate-600 transition-all">
                         <Eraser size={16} />

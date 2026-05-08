@@ -36,6 +36,7 @@ export const registrosService = {
     hasta?: string;
     esAdmin: boolean;
     userProcesoId?: string;
+    isHierarchical?: boolean;
   }): Promise<RegistroMensual[]> {
     let query = supabase
       .from('registro_mensual_indicadores')
@@ -43,7 +44,14 @@ export const registrosService = {
       .order('periodo', { ascending: false });
 
     if (!params.esAdmin && params.userProcesoId) {
-      query = query.eq('proceso_id', params.userProcesoId);
+      if (params.isHierarchical) {
+        // 1. Buscamos hijos
+        const { data: hijos } = await supabase.from('procesos').select('id').eq('proceso_padre_id', params.userProcesoId);
+        const ids = [params.userProcesoId, ...(hijos?.map(h => h.id) || [])];
+        query = query.in('proceso_id', ids);
+      } else {
+        query = query.eq('proceso_id', params.userProcesoId);
+      }
     } else if (params.procesoId && params.procesoId !== 'Todos los procesos') {
       query = query.eq('proceso_id', params.procesoId);
     }

@@ -145,7 +145,10 @@ const AdminPanel: React.FC = () => {
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-bold text-slate-800">{u.full_name || 'Sin Nombre'}</span>
-                                            <span className={`text-[9px] px-2 py-0.5 rounded border uppercase font-bold ${u.role === 'Administrador' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>{u.role}</span>
+                                            <span className={`text-[9px] px-2 py-0.5 rounded border uppercase font-bold ${
+                                                u.role === 'Administrador' ? 'bg-purple-100 text-purple-700 border-purple-200' : 
+                                                'bg-blue-100 text-blue-700 border-blue-200'
+                                            }`}>{u.role}</span>
                                         </div>
                                         <p className="text-xs text-slate-500 font-medium">
                                             {u.email} • {u.role === 'Administrador'

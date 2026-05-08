@@ -9,14 +9,22 @@ export const useIndicadores = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchIndicadores = useCallback(async (procesoId?: string) => {
+  const fetchIndicadores = useCallback(async (procesoId?: string, isHierarchical: boolean = false) => {
     if (!session?.access_token) return;
     
     setLoading(true);
     try {
-      const data = procesoId 
-        ? await indicadoresService.getPorProceso(session.access_token, procesoId)
-        : await indicadoresService.getAll(session.access_token);
+      // REFUERZO: Si el procesoId es el de SGI (padre), forzamos la carga jerárquica
+      const esProcesoSGI = procesoId === 'd1aa17de-5003-4f65-a010-e3e81e3ec906';
+      
+      let data;
+      if (procesoId) {
+        data = (isHierarchical || esProcesoSGI)
+          ? await indicadoresService.getPorProcesoPadre(session.access_token, procesoId)
+          : await indicadoresService.getPorProceso(session.access_token, procesoId);
+      } else {
+        data = await indicadoresService.getAll(session.access_token);
+      }
       setIndicadores(data);
       setError(null);
     } catch (err: any) {

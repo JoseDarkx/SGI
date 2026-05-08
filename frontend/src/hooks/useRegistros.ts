@@ -14,6 +14,7 @@ export const useRegistros = () => {
     hasta?: string;
     esAdmin: boolean;
     userProcesoId?: string;
+    isHierarchical?: boolean;
   }) => {
     setLoading(true);
     try {

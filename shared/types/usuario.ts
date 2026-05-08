@@ -1,5 +1,5 @@
 import { Proceso } from './proceso';
-export type UserRole = 'Administrador' | 'Líder de Proceso';
+export type UserRole = 'Administrador' | 'Líder de Proceso' | 'Sistema de Gestión Integral';
 
 export interface UserProfile {
   id: string;

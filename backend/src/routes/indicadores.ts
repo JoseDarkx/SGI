@@ -44,6 +44,38 @@ router.get('/proceso/:procesoId', authenticateUser, async (req, res) => {
 });
 
 // ==========================================
+// RUTA 2.5: Listar indicadores por proceso padre (GET)
+// Incluye indicadores del proceso padre y de sus subprocesos
+// ==========================================
+router.get('/proceso-padre/:padreId', authenticateUser, async (req, res) => {
+  try {
+    const { padreId } = req.params;
+    
+    // 1. Obtener IDs de subprocesos
+    const { data: subprocesos } = await supabaseAdmin
+      .from('procesos')
+      .select('id')
+      .eq('proceso_padre_id', padreId);
+    
+    const ids = subprocesos?.map(p => p.id) || [];
+    ids.push(padreId); // También incluimos el padre
+
+    // 2. Obtener indicadores de todos esos IDs
+    const { data, error } = await supabaseAdmin
+      .from('indicadores')
+      .select('id, codigo_indicador, nombre_indicador, meta, unidad_medida, frecuencia, umbral_verde, umbral_amarillo, umbral_rojo, descripcion, formula_calculo, proceso_id, procesos(id, nombre_proceso)')
+      .in('proceso_id', ids)
+      .eq('estado', 'Activo');
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    console.error("Error al listar indicadores por jerarquía:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
 // RUTA 3: Crear indicador (POST)
 // Protegida: Solo Administradores
 // ==========================================

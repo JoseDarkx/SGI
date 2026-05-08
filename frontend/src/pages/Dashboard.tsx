@@ -320,7 +320,15 @@ const LeaderDashboard = ({ user }: { user: any }) => {
 
     useEffect(() => {
         if (user?.proceso_id) {
-            fetchRegistrosFiltrados({ esAdmin: false, userProcesoId: user.proceso_id });
+            // Detección por nombre o por ID directo del proceso SGI
+            const isSGI = user.procesos?.nombre_proceso?.includes('Integral') || 
+                         user.proceso_id === 'd1aa17de-5003-4f65-a010-e3e81e3ec906';
+            
+            fetchRegistrosFiltrados({ 
+                esAdmin: false, 
+                userProcesoId: user.proceso_id,
+                isHierarchical: isSGI 
+            });
         }
     }, [user, fetchRegistrosFiltrados]);
 
@@ -368,8 +376,8 @@ const LeaderDashboard = ({ user }: { user: any }) => {
             <div className="bg-gradient-to-r from-[#b91c1c] to-[#0f172a] rounded-2xl p-8 text-white shadow-lg flex items-center gap-6 relative overflow-hidden">
                 <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm"><User size={32} className="text-white" /></div>
                 <div className="relative z-10">
-                    <h2 className="text-2xl font-bold tracking-tight mb-1">Mi Vista - {user.procesos?.codigo_proceso}</h2>
-                    <p className="text-red-100 text-sm font-medium opacity-90">{user.procesos?.nombre_proceso}</p>
+                    <h2 className="text-2xl font-bold tracking-tight mb-1">Mi Vista - {user.procesos?.codigo_proceso || 'SGI'}</h2>
+                    <p className="text-red-100 text-sm font-medium opacity-90">{user.procesos?.nombre_proceso || 'Sistema de Gestión Integral'}</p>
                 </div>
                 <div className="absolute right-8 top-1/2 -translate-y-1/2 z-20">
                     <select

@@ -12,6 +12,7 @@ export interface Proceso {
   nombre_proceso: string;
   tipo_proceso: TipoProceso;
   lider_id: string;
+  proceso_padre_id?: string;
   created_at: string;
 }
 
@@ -52,11 +53,12 @@ export interface RegistroMensual {
   nombre_responsable_registro: string;
   fecha_registro: string;
   estado_registro: EstadoRegistro;
+  evidencia_url?: string;
   indicadores?: Indicador;
   procesos?: Proceso;
 }
 
-export type UserRole = 'Administrador' | 'Líder de Proceso';
+export type UserRole = 'Administrador' | 'Líder de Proceso' | 'Sistema de Gestión Integral';
 
 export interface UserProfile {
   id: string;

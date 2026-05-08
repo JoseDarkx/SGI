@@ -5,7 +5,7 @@ export const procesosService = {
   async getAll(): Promise<Proceso[]> {
     const { data, error } = await supabase
       .from('procesos')
-      .select('id, codigo_proceso, nombre_proceso, tipo_proceso, lider_id')
+      .select('id, codigo_proceso, nombre_proceso, tipo_proceso, lider_id, proceso_padre_id')
       .order('codigo_proceso');
 
     if (error) throw new Error(error.message);

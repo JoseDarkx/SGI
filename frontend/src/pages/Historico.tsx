@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useTransition } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
-import { History, Activity, TrendingUp, TrendingDown, LayoutDashboard, List as ListIcon, Calendar, Edit2, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { History, Activity, TrendingUp, TrendingDown, LayoutDashboard, List as ListIcon, Calendar, Edit2, Trash2, ChevronLeft, ChevronRight, X, FileText } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 // 🚀 Imports de nuestra nueva arquitectura limpia
@@ -36,9 +36,14 @@ const Historico: React.FC = () => {
   useEffect(() => {
     fetchProcesos();
     fetchIndicadores();
+    
+    const isSGI = user?.proceso_id === 'd1aa17de-5003-4f65-a010-e3e81e3ec906' || 
+                 user?.procesos?.nombre_proceso?.includes('Integral');
+
     fetchRegistrosFiltrados({
       esAdmin: user?.role === 'Administrador',
-      userProcesoId: user?.proceso_id || undefined
+      userProcesoId: user?.proceso_id || undefined,
+      isHierarchical: isSGI
     });
   }, [user, fetchProcesos, fetchIndicadores, fetchRegistrosFiltrados]);
 
@@ -96,11 +101,7 @@ const Historico: React.FC = () => {
   const getYearMonth = (fecha: string) => fecha?.substring(0, 7) ?? '';
 
   const filtered = registros.filter(r => {
-    const esAdmin = user?.role === 'Administrador';
-    const esMiArea = r.usuario_sistema === user?.id;
-
-    if (!esAdmin && !esMiArea) return false;
-
+    // Si ya están en el array 'registros' es porque el servidor nos dio permiso de verlos
     const matchProceso = filterProceso === 'Todos los procesos' || r.procesos?.nombre_proceso === filterProceso;
     const matchIndicador = filterIndicador === 'Todos los indicadores' || r.indicadores?.nombre_indicador === filterIndicador;
     const matchFrecuencia = filterFrecuencia === 'Todas' || r.indicadores?.frecuencia === filterFrecuencia;
@@ -170,26 +171,22 @@ const Historico: React.FC = () => {
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
-  const misProcesosIds = useMemo(() => {
-    if (user?.role === 'Administrador') return [];
-    return Array.from(new Set(registros.filter(r => r.usuario_sistema === user?.id).map(r => r.proceso_id)));
-  }, [registros, user]);
-
   const procesosDisponibles = useMemo(() => {
-    return user?.role === 'Administrador'
-      ? procesos
-      : procesos.filter(p => misProcesosIds.includes(p.id));
-  }, [procesos, user, misProcesosIds]);
+    if (user?.role === 'Administrador') return procesos;
+    
+    // Si soy SGI, puedo ver todos los procesos que aparezcan en mis registros (que ya son jerárquicos)
+    const idsEnRegistros = Array.from(new Set(registros.map(r => r.proceso_id)));
+    return procesos.filter(p => p.id === user?.proceso_id || idsEnRegistros.includes(p.id));
+  }, [procesos, user, registros]);
 
   const indicadoresDisponibles = useMemo(() => {
-    const indicadoresPermitidos = user?.role === 'Administrador'
-      ? indicadores
-      : indicadores.filter(i => misProcesosIds.includes(i.proceso_id));
+    const idsDisponibles = procesosDisponibles.map(p => p.id);
+    const indicadoresPermitidos = indicadores.filter(i => idsDisponibles.includes(i.proceso_id));
 
     if (filterProceso === 'Todos los procesos') return indicadoresPermitidos;
     const procSeleccionado = procesosDisponibles.find(p => p.nombre_proceso === filterProceso);
     return indicadoresPermitidos.filter(i => i.proceso_id === procSeleccionado?.id);
-  }, [indicadores, filterProceso, procesosDisponibles, user, misProcesosIds]);
+  }, [indicadores, filterProceso, procesosDisponibles]);
 
   const isLoading = loadingReg || loadingInd || loadingProc;
 
@@ -406,6 +403,16 @@ const Historico: React.FC = () => {
                     >
                       <Trash2 size={10} /> Eliminar
                     </button>
+                  )}
+                  {r.evidencia_url && (
+                    <a
+                      href={r.evidencia_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors font-bold uppercase cursor-pointer no-underline"
+                    >
+                      <FileText size={10} /> Ver Evidencia
+                    </a>
                   )}
                 </div>
                 <span className={`px-3 py-1 rounded-full uppercase font-bold text-[10px] ${r.estado_registro === 'Finalizado' ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-800'}`}>{r.estado_registro}</span>

@@ -19,7 +19,6 @@ router.get('/', auth_1.authenticateUser, async (req, res) => {
         res.json(data);
     }
     catch (error) {
-        console.error("Error al listar usuarios:", error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -33,11 +32,8 @@ router.delete('/:id', auth_1.authenticateUser, auth_1.authorizeAdmin, async (req
         // Primero intentamos borrar de Auth
         const { error: authError } = await supabase_1.supabaseAdmin.auth.admin.deleteUser(id);
         if (authError) {
-            // Si el error es que no existe, procedemos a limpiar la DB
-            if (authError.message.includes('User not found')) {
-                console.warn("Usuario no encontrado en Auth, procediendo a borrar perfil DB...");
-            }
-            else {
+            // Si el error es que no existe en Auth, procedemos a limpiar solo la DB
+            if (!authError.message.includes('User not found')) {
                 throw authError;
             }
         }
@@ -48,7 +44,6 @@ router.delete('/:id', auth_1.authenticateUser, auth_1.authorizeAdmin, async (req
         res.json({ message: 'Usuario eliminado correctamente' });
     }
     catch (error) {
-        console.error("Error al eliminar usuario:", error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -60,33 +55,28 @@ router.post('/', auth_1.authenticateUser, auth_1.authorizeAdmin, async (req, res
     let createdUserId = null;
     try {
         const { email, password, full_name, role, proceso_id, nombre_proceso } = req.body;
-        console.log(`CREAR-USUARIO: Iniciando proceso para ${email}`);
         if (!email || !full_name) {
             throw new Error("Email y Nombre son obligatorios");
         }
         // 1. Invitar usuario por Email
-        console.log("Enviando invitación por email...");
         const { data: authData, error: authError } = await supabase_1.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
             data: { full_name, role, nombre_proceso }
         });
         if (authError) {
-            console.error(`Error Auth (Invitation): ${authError.message}`);
             throw new Error(`Error al enviar invitación: ${authError.message}. Verifica límites SMTP.`);
         }
         createdUserId = authData.user.id;
-        console.log(`Usuario invitado exitosamente. ID: ${createdUserId}`);
         // 2. Definir la contraseña y marcar como verificado (el admin lo crea listo para usar)
-        console.log("Asignando contraseña inicial y confirmando email...");
         const { error: updateAuthError } = await supabase_1.supabaseAdmin.auth.admin.updateUserById(createdUserId, {
             password: password || '123456',
             email_confirm: true,
             user_metadata: { full_name, role, nombre_proceso }
         });
         if (updateAuthError) {
-            console.warn("Aviso: No se pudo auto-confirmar el usuario:", updateAuthError.message);
+            // No es crítico, el usuario ya fue creado — se registra pero no se lanza
+            // El usuario podrá confirmar su email manualmente
         }
         // 3. Insertar perfil en la tabla 'profiles'
-        console.log("Creando registro en tabla de perfiles...");
         const { error: profileInsertError } = await supabase_1.supabaseAdmin.from('profiles').upsert([
             {
                 id: createdUserId,
@@ -97,12 +87,8 @@ router.post('/', auth_1.authenticateUser, auth_1.authorizeAdmin, async (req, res
             }
         ]);
         if (profileInsertError) {
-            console.error("Error al insertar perfil:", profileInsertError.message);
-            // OPTIONAL: Rollback user in Auth if profile creation fails?
-            // await supabaseAdmin.auth.admin.deleteUser(createdUserId);
             throw new Error(`Error DB (Profile): ${profileInsertError.message}`);
         }
-        console.log("Usuario creado y perfil sincronizado correctamente.");
         res.status(201).json({
             success: true,
             message: "Usuario creado correctamente",
@@ -110,7 +96,6 @@ router.post('/', auth_1.authenticateUser, auth_1.authorizeAdmin, async (req, res
         });
     }
     catch (error) {
-        console.error("Error en crear-usuario:", error.message);
         res.status(400).json({ error: error.message });
     }
 });
@@ -145,7 +130,6 @@ router.put('/:id', auth_1.authenticateUser, auth_1.authorizeAdmin, async (req, r
         res.json({ success: true, user: authData.user });
     }
     catch (error) {
-        console.error("Error al actualizar usuario:", error);
         res.status(500).json({ error: error.message });
     }
 });

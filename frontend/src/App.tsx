@@ -97,7 +97,9 @@ const ProtectedRoute: React.FC = () => {
         <div className="flex items-center gap-6">
           <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-white">{user.full_name || 'Usuario'}</p>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider">{user.role}</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              {user.role}
+            </p>
           </div>
 
           <button
@@ -123,8 +125,8 @@ const ProtectedRoute: React.FC = () => {
 
       <div className="bg-white border-b border-slate-200 px-8 py-2 shadow-sm sticky top-0 z-40">
         <nav className="flex justify-start gap-2 overflow-x-auto">
-          <NavItem to="/" label={isAdmin ? 'Vista General' : 'Mi Vista'} icon={<LayoutGrid size={16} />} active={location.pathname === '/'} />
-          {isAdmin && (
+          <NavItem to="/" label={isAdmin || user.procesos?.nombre_proceso?.includes('Integral') ? 'Vista General' : 'Mi Vista'} icon={<LayoutGrid size={16} />} active={location.pathname === '/'} />
+          {(isAdmin || user.procesos?.nombre_proceso?.includes('Integral')) && (
             <>
               <NavItem to="/matriz" label="Matriz de Indicadores" icon={<ClipboardList size={16} />} active={location.pathname === '/matriz'} />
               <NavItem to="/procesos" label="Procesos" icon={<Building2 size={16} />} active={location.pathname === '/procesos'} />

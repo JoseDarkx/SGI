@@ -35,11 +35,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleSignOut = async () => {
     try {
-      setLoading(true);
+      // Optimizamos: Limpiamos el estado local inmediatamente (Optimistic Logout)
+      // No activamos el loading global para que el usuario no vea una pantalla de carga infinita
+      setUser(null);
+      setSession(null);
+      
+      // Llamamos a Supabase para invalidar la sesión
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Error al salir:', error);
     } finally {
+      // Nos aseguramos de que el estado esté limpio y loading en false
       setUser(null);
       setSession(null);
       setLoading(false);
